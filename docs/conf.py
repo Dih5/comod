@@ -21,8 +21,25 @@ import os
 import sys
 
 import comod
+
 sys.path.insert(0, os.path.abspath('..'))
 
+# Mock the needed packages on RTD
+# http://docs.readthedocs.io/en/latest/faq.html#i-get-import-errors-on-libraries-that-depend-on-c-modules
+# Make sure to set the interpreter to Cpython 3.X
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+if on_rtd:
+    from unittest.mock import MagicMock
+
+
+    class Mock(MagicMock):
+        @classmethod
+        def __getattr__(cls, name):
+            return MagicMock()
+
+
+    MOCK_MODULES = ['numpy', 'scipy', 'igraph']
+    sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # -- General configuration ---------------------------------------------
 
@@ -33,11 +50,11 @@ needs_sphinx = '1.3'  # Napoleon extension
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc',
-'sphinx.ext.viewcode', 
-'sphinx.ext.napoleon',
-'nbsphinx',
-'IPython.sphinxext.ipython_console_highlighting',
-]
+              'sphinx.ext.viewcode',
+              'sphinx.ext.napoleon',
+              'nbsphinx',
+              'IPython.sphinxext.ipython_console_highlighting',
+              ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -83,7 +100,6 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
-
 # -- Options for HTML output -------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -102,12 +118,10 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-
 # -- Options for HTMLHelp output ---------------------------------------
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'comoddoc'
-
 
 # -- Options for LaTeX output ------------------------------------------
 
@@ -138,7 +152,6 @@ latex_documents = [
      author, 'manual'),
 ]
 
-
 # -- Options for manual page output ------------------------------------
 
 # One entry per manual page. List of tuples
@@ -148,7 +161,6 @@ man_pages = [
      'comod Package Documentation',
      [author], 1)
 ]
-
 
 # -- Options for Texinfo output ----------------------------------------
 

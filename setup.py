@@ -2,8 +2,13 @@
 # -*- coding: utf-8 -*-
 
 """The setup script"""
-
+import os
 from setuptools import setup, find_packages
+
+if os.environ.get('READTHEDOCS') == 'True':
+    requirements = []
+else:
+    requirements = ["numpy", "scipy", "python-igraph"]
 
 setup(author="Dih5",
       author_email='dihedralfive@gmail.com',
@@ -19,14 +24,13 @@ setup(author="Dih5",
       ],
       description='Compartmental modelling Python package',
       extras_require={
-        "docs": ["nbsphinx", "sphinx-rtd-theme", "IPython"],
-        "test": ["pytest"],
+          "docs": ["nbsphinx", "sphinx-rtd-theme", "IPython"],
+          "test": ["pytest"],
       },
       keywords=[],
       name='comod',
       packages=find_packages(include=['comod'], exclude=["demos", "tests", "docs"]),
-      install_requires=["numpy", "scipy",
-                        "python-igraph"],
+      install_requires=requirements,
       url='https://github.com/dih5/comod',
       version='0.1.0',
 
