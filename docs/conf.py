@@ -27,6 +27,8 @@ sys.path.insert(0, os.path.abspath('..'))
 if os.environ.get('READTHEDOCS') == 'True':
     autodoc_mock_imports = ['numpy', 'scipy', 'igraph']
 
+import comod
+
 # -- General configuration ---------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
