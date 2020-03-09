@@ -15,6 +15,7 @@ setup(author="Dih5",
       classifiers=[
           'Development Status :: 3 - Alpha',
           'Intended Audience :: Science/Research',
+          'License :: OSI Approved :: MIT License',
           'Natural Language :: English',
           'Programming Language :: Python :: 3',
           'Programming Language :: Python :: 3.5',
