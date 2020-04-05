@@ -7,6 +7,7 @@ __all__ = []
 import re
 
 import numpy as np
+import pandas as pd
 from scipy import integrate, optimize
 import igraph
 
@@ -60,11 +61,11 @@ def _window(a, window_size=4, step_size=2, copy=False):
     Args:
         a (np.array): The original array.
         window_size (int): Window size.
-        step_size (int): Window step size
+        step_size (int): Window step size.
         copy (bool): Whether to return a copy of the array instead of a readonly view.
 
     Returns:
-        np.array:
+        np.array: The sliding window.
 
     """
     sh = (a.size - window_size + 1, window_size)
@@ -76,7 +77,8 @@ def _window(a, window_size=4, step_size=2, copy=False):
         return view
 
 
-def sliding_time(t, window_size=4, step_size=2, criterion="last"):
+def _sliding_time(t, window_size=4, step_size=2, criterion="last"):
+    """Convenience function to extract times to represent a sliding window"""
     _t = _window(t, window_size=window_size, step_size=step_size)
     if criterion == "first":
         return _t[:, 0]
@@ -273,8 +275,20 @@ class Model:
 
         return optimize.least_squares(get_residuals, initial_pars, **ls_kwargs)
 
+    def _best_sliding_fit(self, data, t, initial_pars, window_size, step_size, target="dy", component_weights=None,
+                          ls_kwargs=None):
+        """Iterator yielding the values for _best_sliding_fit"""
+        data = np.asarray(data)
+
+        t = np.asarray(t)
+
+        for data_subset in list(
+            zip(*[_window(x, window_size, step_size) for x in data], _window(t, window_size, step_size))):
+            yield self.best_fit(data_subset[:-1], data_subset[-1], initial_pars, target=target,
+                                component_weights=component_weights, ls_kwargs=ls_kwargs).x
+
     def best_sliding_fit(self, data, t, initial_pars, window_size, step_size, target="dy", component_weights=None,
-                         ls_kwargs=None):
+                         ls_kwargs=None, time_criterion="last"):
         """
         Get a best fit of the model to the provided data
 
@@ -290,18 +304,21 @@ class Model:
                           - "dy": The changes of the curves.
             component_weights (list of float): A set of weights for each component of the model
             ls_kwargs (dict): Additional kwargs to pass to the least squares solver. Cf. scipy.optimize.least_squares.
+            time_criterion (str): Criterion used to asign a time value for each of the windows. Available values are:
+                                  - "last": The last time in the window.
+                                  - "first": The first time in the window.
+                                  - "median": The median time of the points in the window.
+                                  - "mean": The mean time of the points in the window.
 
-        Yields:
-            np.ndarray: Best parameter fit in each of the windows.
+        Returns:
+            pd.DataFrame: A dataframe with the fits in each of the windows.
+
         """
-        data = np.asarray(data)
+        values = np.asarray(list(self._best_sliding_fit(data, t, initial_pars, window_size, step_size, target=target,
+                                                        component_weights=component_weights, ls_kwargs=ls_kwargs)))
+        t2 = _sliding_time(t, window_size=window_size, step_size=step_size, criterion=time_criterion)
 
-        t = np.asarray(t)
-
-        for data_subset in list(
-            zip(*[_window(x, window_size, step_size) for x in data], _window(t, window_size, step_size))):
-            yield self.best_fit(data_subset[:-1], data_subset[-1], initial_pars, target=target,
-                                component_weights=component_weights, ls_kwargs=ls_kwargs).x
+        return pd.DataFrame(values, index=t2, columns=self.parameters)
 
     def plot_graph(self, **kwargs):
         """
