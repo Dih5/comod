@@ -7,7 +7,7 @@ __all__ = []
 import re
 
 import numpy as np
-from scipy import integrate
+from scipy import integrate, optimize
 import igraph
 
 
@@ -51,6 +51,43 @@ def _monomial_from_str(s, states, coeffs):
             else:
                 coeff *= value
     return coeff, states_exponents, coeffs_exponents
+
+
+def _window(a, window_size=4, step_size=2, copy=False):
+    """
+    Get a sliding window of an array
+
+    Args:
+        a (np.array): The original array.
+        window_size (int): Window size.
+        step_size (int): Window step size
+        copy (bool): Whether to return a copy of the array instead of a readonly view.
+
+    Returns:
+        np.array:
+
+    """
+    sh = (a.size - window_size + 1, window_size)
+    st = a.strides * 2
+    view = np.lib.stride_tricks.as_strided(a, strides=st, shape=sh, writeable=False)[0::step_size]
+    if copy:
+        return view.copy()
+    else:
+        return view
+
+
+def sliding_time(t, window_size=4, step_size=2, criterion="last"):
+    _t = _window(t, window_size=window_size, step_size=step_size)
+    if criterion == "first":
+        return _t[:, 0]
+    elif criterion == "last":
+        return _t[:, -1]
+    elif criterion == "median":
+        return _t[:, int(window_size / 2)]
+    elif criterion == "mean":
+        return np.mean(_t, axis=1)
+    else:
+        raise ValueError("Invalid criterion")
 
 
 class _NumericalModel:
@@ -126,7 +163,7 @@ class Model:
         self.sum_state = sum_state
         self.nihil_state = nihil_state
 
-        all_states=[nihil_state, sum_state] + self.states
+        all_states = [nihil_state, sum_state] + self.states
 
         self._rules = [(all_states.index(origin) - 1,
                         all_states.index(destination) - 1,
@@ -176,6 +213,95 @@ class Model:
 
         """
         return integrate.odeint(_NumericalModel(len(self.states), parameters, self._rules), initial, t).T
+
+    def best_fit(self, data, t, initial_pars, target="dy", component_weights=None, ls_kwargs=None):
+        """
+        Get a best fit of the model to the provided data
+
+        The first point in the data is considered to be defining the initial conditions
+
+        Args:
+            data (list of list of float): 2D array whose first index is the component (e.g., S, I, R....) and its
+                                          second index is the time.
+            t (list of float): Time mesh. Must be consistent with data.
+            initial_pars (list of float): Initial values of the parameters.
+            target (str): Metric to reproduce. Available options are:
+                          - "y": The curves themselves.
+                          - "dy": The changes of the curves.
+            component_weights (list of float): A set of weights for each component of the model
+            ls_kwargs (dict): Additional kwargs to pass to the least squares solver. Cf. scipy.optimize.least_squares.
+
+        Returns:
+            scipy.optimize.OptimizeResult: Object describing the result of the fitting. To obtain the parameters access
+                                           its x attribute.
+
+        """
+        if component_weights is None:
+            component_weights = np.ones((len(data),))
+        else:
+            component_weights = np.asarray(component_weights)
+            assert len(component_weights) == len(data)
+
+        if ls_kwargs is None:
+            ls_kwargs = {}
+
+        # Time to first index, component to second
+        data = np.asarray(data).T
+
+        t = np.asarray(t)
+
+        if target == "dy":
+            # Fit to increments
+            time_increments = np.reshape(t[1:] - t[:-1], (-1, 1))
+            real_increments = (data[1:] - data[:-1]) / time_increments
+
+            def get_residuals(parameters):
+                m = _NumericalModel(len(self.states), parameters, self._rules)
+                predicted_increments = [m(datum, time) for time, datum in zip(t, data)][:-1]
+
+                return np.reshape(real_increments - predicted_increments, (-1,)) * np.tile(component_weights,
+                                                                                           len(data) - 1)
+        elif target == "y":
+            # Fit to curves
+            initials = data[0]
+
+            def get_residuals(parameters):
+                predicted_values = self.solve(initials, parameters, t)
+                return np.reshape((data.T - predicted_values), (-1,)) * np.repeat(component_weights, len(data))
+        else:
+            raise ValueError("Invalid method")
+
+        return optimize.least_squares(get_residuals, initial_pars, **ls_kwargs)
+
+    def best_sliding_fit(self, data, t, initial_pars, window_size, step_size, target="dy", component_weights=None,
+                         ls_kwargs=None):
+        """
+        Get a best fit of the model to the provided data
+
+        The first point in the data is considered to be defining the initial conditions
+
+        Args:
+            data (list of list of float): 2D array whose first index is the component (e.g., S, I, R....) and its
+                                          second index is the time.
+            t (list of float): Time mesh. Must be consistent with data.
+            initial_pars (list of float): Initial values of the parameters.
+            target (str): Metric to reproduce. Available options are:
+                          - "y": The curves themselves.
+                          - "dy": The changes of the curves.
+            component_weights (list of float): A set of weights for each component of the model
+            ls_kwargs (dict): Additional kwargs to pass to the least squares solver. Cf. scipy.optimize.least_squares.
+
+        Yields:
+            np.ndarray: Best parameter fit in each of the windows.
+        """
+        data = np.asarray(data)
+
+        t = np.asarray(t)
+
+        for data_subset in list(
+            zip(*[_window(x, window_size, step_size) for x in data], _window(t, window_size, step_size))):
+            yield self.best_fit(data_subset[:-1], data_subset[-1], initial_pars, target=target,
+                                component_weights=component_weights, ls_kwargs=ls_kwargs).x
 
     def plot_graph(self, **kwargs):
         """
