@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 if os.environ.get('READTHEDOCS') == 'True':
     requirements = []
 else:
-    requirements = ["numpy", "scipy", "python-igraph"]
+    requirements = ["numpy", "scipy", "pandas", "python-igraph"]
 
 setup(author="Dih5",
       author_email='dihedralfive@gmail.com',
