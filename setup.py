@@ -5,11 +5,6 @@
 import os
 from setuptools import setup, find_packages
 
-if os.environ.get('READTHEDOCS') == 'True':
-    requirements = []
-else:
-    requirements = ["numpy", "scipy", "pandas", "python-igraph"]
-
 setup(author="Dih5",
       author_email='dihedralfive@gmail.com',
       classifiers=[
@@ -31,7 +26,7 @@ setup(author="Dih5",
       keywords=[],
       name='comod',
       packages=find_packages(include=['comod'], exclude=["demos", "tests", "docs"]),
-      install_requires=requirements,
+      install_requires=["numpy", "scipy", "pandas", "python-igraph"],
       url='https://github.com/dih5/comod',
       version='0.1.0',
 
