@@ -28,6 +28,6 @@ setup(author="Dih5",
       packages=find_packages(include=['comod'], exclude=["demos", "tests", "docs"]),
       install_requires=["numpy", "scipy", "pandas", "python-igraph"],
       url='https://github.com/dih5/comod',
-      version='0.1.0',
+      version='0.1.1',
 
       )
