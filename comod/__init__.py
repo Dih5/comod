@@ -137,6 +137,32 @@ class _NumericalModel:
         return dy
 
 
+class _NumericalTimeModel(_NumericalModel):
+    """Mathematical form of a compartment model where the parameters are functions of the time"""
+
+    def __init__(self, n_states, parameters, rules):
+        """
+
+        Args:
+            n_states (int): Number of states (not including sum or nihil states)
+            parameters (list of callable): The parameters as functions of time.
+            rules (list of tuples): Tuples of the form (origin, destination, (coeff, degree_states, degree_parameters)),
+                                    those being:
+                                    - origin: Index of the origin state.
+                                    - destination: Index of the destination state.
+                                    - coeff: Real number multiplying the coefficient.
+                                    - degree_states: Tuple with the degree of the states in the monomial
+                                                     (0 being the sum state and -1 the nihil state)
+                                    - degree_parameters: Tuple with the degrees of the parameters in the monomial.
+        """
+        self._parameters = parameters
+        super().__init__(n_states, parameters, rules)
+
+    def __call__(self, y, t, *args):
+        self.parameters = [par(t) for par in self._parameters]
+        return super().__call__(y, t, *args)
+
+
 class Model:
     """A compartment model"""
 
@@ -215,6 +241,22 @@ class Model:
 
         """
         return integrate.odeint(_NumericalModel(len(self.states), parameters, self._rules), initial, t).T
+
+    def solve_time(self, initial, parameters, t):
+        """
+        Solve the model numerically for parameters given as functions of time.
+
+        The solution is found using scipy.integrate.odeint, which uses lsoda from the FORTRAN library odepack.
+
+        Args:
+            initial (list of float): Initial population for each of the states.
+            parameters (list of callable): Functions of time defining the parameters.
+            t (list of float): Mesh of time values for which the solution is found.
+
+        Returns:
+
+        """
+        return integrate.odeint(_NumericalTimeModel(len(self.states), parameters, self._rules), initial, t).T
 
     def best_fit(self, data, t, initial_pars, target="dy", component_weights=None, ls_kwargs=None):
         """
