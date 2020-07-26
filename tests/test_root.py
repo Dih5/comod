@@ -51,9 +51,24 @@ def test_SIR():
                                                   ("I", "R", "g")],
                         sum_state="N")
 
-    print(model.rules)
-    print(model._rules)
-
     solution2 = model.solve(initial, [beta, gamma], t)
 
     assert np.allclose(solution, solution2)
+
+    # Test the function-based definition
+
+    def S_I(I=None, N=None, b=None, **kwargs):
+        return b * I / N
+
+    def I_R(g=None, **kwargs):
+        return g
+
+    model = comod.FunctionModel("SIR",
+                                "bg",
+                                [
+                                    ("S", "I", S_I),
+                                    ("I", "R", I_R)
+                                ])
+
+    solution3 = model.solve(initial, [beta, gamma], t)
+    assert np.allclose(solution, solution3)

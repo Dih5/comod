@@ -92,78 +92,7 @@ def _sliding_time(t, window_size=4, step_size=2, criterion="last"):
         raise ValueError("Invalid criterion")
 
 
-class _NumericalModel:
-    """Mathematical form of a compartment."""
-
-    def __init__(self, n_states, parameters, rules):
-        """
-
-        Args:
-            n_states (int): Number of states (not including sum or nihil states)
-            parameters (list of float): Values for the parameters.
-            rules (list of tuples): Tuples of the form (origin, destination, (coeff, degree_states, degree_parameters)),
-                                    those being:
-                                    - origin: Index of the origin state.
-                                    - destination: Index of the destination state.
-                                    - coeff: Real number multiplying the coefficient.
-                                    - degree_states: Tuple with the degree of the states in the monomial
-                                                     (0 being the sum state and -1 the nihil state)
-                                    - degree_parameters: Tuple with the degrees of the parameters in the monomial.
-        """
-        self.n_states = n_states
-        self.parameters = parameters
-        self.rules = rules
-
-    def __call__(self, y, t, *args):
-        dy = np.zeros(self.n_states)
-        # [N, Q_1, Q_2, ...]
-        y = np.concatenate([[np.sum(y)], y])
-        for origin, destination, (coeff, degree_states, degree_parameters) in self.rules:
-            # Note this implementation relies on 0.0**0==1.0
-            if origin == -1:
-                dy[destination - 1] += coeff * np.prod(y ** degree_states) * np.prod(
-                    self.parameters ** degree_parameters)
-            elif destination == -1:
-                dy[origin - 1] -= coeff * np.prod(y ** degree_states) * np.prod(
-                    self.parameters ** degree_parameters) * y[
-                                      origin]
-            else:
-                dy[origin - 1] -= coeff * np.prod(y ** degree_states) * np.prod(
-                    self.parameters ** degree_parameters) * y[
-                                      origin]
-                dy[destination - 1] += coeff * np.prod(y ** degree_states) * np.prod(
-                    self.parameters ** degree_parameters) * \
-                                       y[origin]
-        return dy
-
-
-class _NumericalTimeModel(_NumericalModel):
-    """Mathematical form of a compartment model where the parameters are functions of the time"""
-
-    def __init__(self, n_states, parameters, rules):
-        """
-
-        Args:
-            n_states (int): Number of states (not including sum or nihil states)
-            parameters (list of callable): The parameters as functions of time.
-            rules (list of tuples): Tuples of the form (origin, destination, (coeff, degree_states, degree_parameters)),
-                                    those being:
-                                    - origin: Index of the origin state.
-                                    - destination: Index of the destination state.
-                                    - coeff: Real number multiplying the coefficient.
-                                    - degree_states: Tuple with the degree of the states in the monomial
-                                                     (0 being the sum state and -1 the nihil state)
-                                    - degree_parameters: Tuple with the degrees of the parameters in the monomial.
-        """
-        self._parameters = parameters
-        super().__init__(n_states, parameters, rules)
-
-    def __call__(self, y, t, *args):
-        self.parameters = [par(t) for par in self._parameters]
-        return super().__call__(y, t, *args)
-
-
-class Model:
+class _Model:
     """A compartment model"""
 
     def __init__(self, states=None, parameters=None, rules=None, sum_state="N", nihil_state="$"):
@@ -172,12 +101,8 @@ class Model:
         Args:
             states (str or list of str): Names of the states. If str, one letter per state is assumed.
             parameters (str or list of str): Names of the coefficients. If str, one letter per state is assumed.
-            rules (list of (str, str, str) tuples): Transition rules defined by origin state, destination state and
-                                            multiplicative coefficient. The proportionality on the population of the
-                                            origin state is automatically assumed (unless the rule is describing
-                                            births). The coefficient might be a product of real numbers, states, and
-                                            parameters. Division is allowed, parenthesis are not. Use multiple rules to
-                                            define additions or subtractions.
+            rules (list of (str, str, object) tuples): Transition rules defined by origin state, destination state and
+                                            some subclass-dependent object.
             sum_state (str): Name of a special state with the total population. Can be used in the coefficients.
             nihil_state (str): Name of a special state used to described birth rules (when used as origin) and death
                                rules (when used as destination).
@@ -191,12 +116,17 @@ class Model:
         self.sum_state = sum_state
         self.nihil_state = nihil_state
 
-        all_states = [nihil_state, sum_state] + self.states
+    def _get_numerical_model(self, parameters):
+        """Return a numerical model which calculates (y, t) -> dy"""
+        raise NotImplementedError
 
-        self._rules = [(all_states.index(origin) - 1,
-                        all_states.index(destination) - 1,
-                        _monomial_from_str(s, [self.nihil_state, self.sum_state] + self.states, self.parameters))
-                       for origin, destination, s in self.rules]
+    @classmethod
+    def _coef_to_latex(cls, coeff):
+        return str(coeff)
+
+    @classmethod
+    def _coef_to_plot(cls, coeff):
+        return str(coeff)
 
     def to_latex(self):
         """
@@ -209,7 +139,8 @@ class Model:
         dy = {state: "" for state in self.states}
 
         for origin, destination, coeff in self.rules:
-            # Note this implementation relies on 0.0**0==1.0
+            coeff = self._coef_to_latex(coeff)
+
             if origin == self.nihil_state:
                 dy[destination] += " + %s" % coeff
             elif destination == self.nihil_state:
@@ -240,7 +171,7 @@ class Model:
         Returns:
 
         """
-        return integrate.odeint(_NumericalModel(len(self.states), parameters, self._rules), initial, t).T
+        return integrate.odeint(self._get_numerical_model(parameters), initial, t).T
 
     def solve_time(self, initial, parameters, t):
         """
@@ -256,7 +187,7 @@ class Model:
         Returns:
 
         """
-        return integrate.odeint(_NumericalTimeModel(len(self.states), parameters, self._rules), initial, t).T
+        raise NotImplementedError
 
     def best_fit(self, data, t, initial_pars, target="dy", component_weights=None, ls_kwargs=None):
         """
@@ -300,7 +231,7 @@ class Model:
             real_increments = (data[1:] - data[:-1]) / time_increments
 
             def get_residuals(parameters):
-                m = _NumericalModel(len(self.states), parameters, self._rules)
+                m = self._get_numerical_model(parameters)
                 predicted_increments = [m(datum, time) for time, datum in zip(t, data)][:-1]
 
                 return np.reshape(real_increments - predicted_increments, (-1,)) * np.tile(component_weights,
@@ -376,7 +307,7 @@ class Model:
         g = igraph.Graph(directed=True)
         g.add_vertices([self.nihil_state] + self.states)
         g.add_edges([r[:2] for r in self.rules])
-        g.es["label"] = [r[2] for r in self.rules]
+        g.es["label"] = [self._coef_to_plot(r[2]) for r in self.rules]
 
         if "vertex_label" not in kwargs:
             kwargs["vertex_label"] = [""] + self.states
@@ -384,3 +315,205 @@ class Model:
             kwargs["vertex_color"] = ["red"] + ["blue"] * len(self.states)
 
         return igraph.plot(g, **kwargs)
+
+
+class _NumericalModel:
+    """Mathematical form of a compartment."""
+
+    def __init__(self, n_states, parameters, rules):
+        """
+
+        Args:
+            n_states (int): Number of states (not including sum or nihil states)
+            parameters (list of float): Values for the parameters.
+            rules (list of tuples): Tuples of the form (origin, destination, (coeff, degree_states, degree_parameters)),
+                                    those being:
+                                    - origin: Index of the origin state.
+                                    - destination: Index of the destination state.
+                                    - coeff: Real number multiplying the coefficient.
+                                    - degree_states: Tuple with the degree of the states in the monomial
+                                                     (0 being the sum state and -1 the nihil state)
+                                    - degree_parameters: Tuple with the degrees of the parameters in the monomial.
+        """
+        self.n_states = n_states
+        self.parameters = parameters
+        self.rules = rules
+
+    def __call__(self, y, t, *args):
+        dy = np.zeros(self.n_states)
+        # [N, Q_1, Q_2, ...]
+        y = np.concatenate([[np.sum(y)], y])
+        for origin, destination, (coeff, degree_states, degree_parameters) in self.rules:
+            # Note this implementation relies on 0.0**0==1.0
+            if origin == -1:
+                dy[destination - 1] += coeff * np.prod(y ** degree_states) * np.prod(
+                    self.parameters ** degree_parameters)
+            elif destination == -1:
+                dy[origin - 1] -= coeff * np.prod(y ** degree_states) * np.prod(
+                    self.parameters ** degree_parameters) * y[
+                                      origin]
+            else:
+                dy[origin - 1] -= coeff * np.prod(y ** degree_states) * np.prod(
+                    self.parameters ** degree_parameters) * y[
+                                      origin]
+                dy[destination - 1] += coeff * np.prod(y ** degree_states) * np.prod(
+                    self.parameters ** degree_parameters) * \
+                                       y[origin]
+        return dy
+
+
+class _NumericalTimeModel(_NumericalModel):
+    """Mathematical form of a compartment model where the parameters are functions of the time"""
+
+    def __init__(self, n_states, parameters, rules):
+        """
+
+        Args:
+            n_states (int): Number of states (not including sum or nihil states)
+            parameters (list of callable): The parameters as functions of time.
+            rules (list of tuples): Tuples of the form (origin, destination, (coeff, degree_states, degree_parameters)),
+                                    those being:
+                                    - origin: Index of the origin state.
+                                    - destination: Index of the destination state.
+                                    - coeff: Real number multiplying the coefficient.
+                                    - degree_states: Tuple with the degree of the states in the monomial
+                                                     (0 being the sum state and -1 the nihil state)
+                                    - degree_parameters: Tuple with the degrees of the parameters in the monomial.
+        """
+        self._parameters = parameters
+        super().__init__(n_states, parameters, rules)
+
+    def __call__(self, y, t, *args):
+        self.parameters = [par(t) for par in self._parameters]
+        return super().__call__(y, t, *args)
+
+
+class Model(_Model):
+    """A compartment model with transition rules defined by strings"""
+
+    def __init__(self, states=None, parameters=None, rules=None, sum_state="N", nihil_state="$"):
+        """
+
+        Args:
+            states (str or list of str): Names of the states. If str, one letter per state is assumed.
+            parameters (str or list of str): Names of the coefficients. If str, one letter per state is assumed.
+            rules (list of (str, str, str) tuples): Transition rules defined by origin state, destination state and
+                                            multiplicative coefficient. The proportionality on the population of the
+                                            origin state is automatically assumed (unless the rule is describing
+                                            births). The coefficient might be a product of real numbers, states, and
+                                            parameters. Division is allowed, parenthesis are not. Use multiple rules to
+                                            define additions or subtractions.
+            sum_state (str): Name of a special state with the total population. Can be used in the coefficients.
+            nihil_state (str): Name of a special state used to described birth rules (when used as origin) and death
+                               rules (when used as destination).
+
+        """
+
+        super().__init__(states, parameters, rules, sum_state, nihil_state)
+
+        all_states = [nihil_state, sum_state] + self.states
+
+        self._rules = [(all_states.index(origin) - 1,
+                        all_states.index(destination) - 1,
+                        _monomial_from_str(s, [self.nihil_state, self.sum_state] + self.states, self.parameters))
+                       for origin, destination, s in self.rules]
+
+    def _get_numerical_model(self, parameters):
+        return _NumericalModel(len(self.states), parameters, self._rules)
+
+    def solve_time(self, initial, parameters, t):
+        """
+        Solve the model numerically for parameters given as functions of time.
+
+        The solution is found using scipy.integrate.odeint, which uses lsoda from the FORTRAN library odepack.
+
+        Args:
+            initial (list of float): Initial population for each of the states.
+            parameters (list of callable): Functions of time defining the parameters.
+            t (list of float): Mesh of time values for which the solution is found.
+
+        Returns:
+
+        """
+        return integrate.odeint(_NumericalTimeModel(len(self.states), parameters, self._rules), initial, t).T
+
+
+class _FunctionNumericalModel:
+    """Mathematical form of a compartment model with transition rules defined by callables"""
+
+    def __init__(self, states, parameters, rules, sum_state="N"):
+        """
+
+        Args:
+            states (list of str): Names of the states.
+            parameters (dict of str to float): Mapping from parameters to their values.
+            rules (list of tuples): Tuples of the form (origin, destination, f),
+                                    those being:
+                                    - origin: Index of the origin state.
+                                    - destination: Index of the destination state.
+                                    - f: Callable receiving values as kwargs and returning a coefficient
+            sum_state (str): Name of a special state with the total population.
+        """
+        self.states = states
+        self.n_states = len(states)
+        self.parameters = parameters
+        self.rules = rules
+
+        self.sum_state = sum_state
+
+    def __call__(self, y, t, *args):
+        dy = np.zeros(self.n_states)
+
+        y = np.concatenate([[np.sum(y)], y])
+
+        states = [self.sum_state] + self.states
+
+        kwargs = {**dict(zip(states, y)), **self.parameters}
+
+        for origin, destination, f in self.rules:
+            value = f(**kwargs)
+            if origin == -1:
+                dy[destination - 1] += value
+            elif destination == -1:
+                dy[origin - 1] -= value * y[origin]
+            else:
+                dy[origin - 1] -= value * y[origin]
+                dy[destination - 1] += value * y[origin]
+        return dy
+
+
+class FunctionModel(_Model):
+    """A compartment model with transition rules defined by callables"""
+
+    def __init__(self, states=None, parameters=None, rules=None, sum_state="N", nihil_state="_"):
+        """
+
+        Args:
+            states (str or list of str): Names of the states. If str, one letter per state is assumed.
+            parameters (str or list of str): Names of the coefficients. If str, one letter per state is assumed.
+            rules (list of (str, str, callable) tuples): Transition rules defined by origin state, destination state and
+                                            a callable.
+            sum_state (str): Name of a special state with the total population. Can be used in the coefficients.
+            nihil_state (str): Name of a special state used to described birth rules (when used as origin) and death
+                               rules (when used as destination).
+
+        """
+        super().__init__(states, parameters, rules, sum_state, nihil_state)
+        all_states = [nihil_state, sum_state] + self.states
+
+        self._rules = [(all_states.index(origin) - 1,
+                        all_states.index(destination) - 1,
+                        f)
+                       for origin, destination, f in self.rules]
+
+    def _get_numerical_model(self, parameters):
+        return _FunctionNumericalModel(self.states, dict(zip(self.parameters, parameters)), self._rules,
+                                       sum_state=self.sum_state)
+
+    @classmethod
+    def _coef_to_latex(cls, coeff):
+        return coeff.__name__
+
+    @classmethod
+    def _coef_to_plot(cls, coeff):
+        return coeff.__name__
