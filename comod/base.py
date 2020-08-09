@@ -540,3 +540,41 @@ class FunctionModel(_Model):
     @classmethod
     def _coef_to_plot(cls, coeff):
         return coeff.__name__
+
+
+def add_natural(model, birth_param="birth", death_param="mu", birth_state=None):
+    """
+    Add some "natural" birth and death dynamics to a model
+
+    Births are described by an absolute rate, while deaths are relative to the population.
+
+    Args:
+        model (Model): Base model which will be extended.
+        birth_param (str): Name of the birth rate parameter.
+        death_param (str): Name of the death rate parameter.
+        birth_state (str): State were births take place. Defaults to the first state of model.
+
+    Returns:
+        Model: A new model with the extended dynamics.
+
+    """
+    rules = model.rules[:]
+    states = model.states[:]
+    parameters = model.parameters[:]
+
+    if birth_state is None:
+        birth_state = states[0]
+    else:
+        assert birth_state in states, "Birth state not found in model"
+
+    assert birth_param not in parameters, "Birth parameter already exists"
+    assert death_param not in parameters, "Death parameter already exists"
+
+    # Birth
+    rules.append((model.nihil_state, birth_state, birth_param))
+
+    # Death
+    for state in states:
+        rules.append((state, model.nihil_state, death_param))
+
+    return Model(states, parameters + [birth_param, death_param], rules, model.sum_state, model.nihil_state)
