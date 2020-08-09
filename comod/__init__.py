@@ -320,7 +320,7 @@ class _Model:
 class _NumericalModel:
     """Mathematical form of a compartment."""
 
-    def __init__(self, n_states, parameters, rules):
+    def __init__(self, n_states, parameters, rules, agg_states=None):
         """
 
         Args:
@@ -338,11 +338,21 @@ class _NumericalModel:
         self.n_states = n_states
         self.parameters = parameters
         self.rules = rules
+        self.agg_states = agg_states if agg_states is not None else []
 
     def __call__(self, y, t, *args):
         dy = np.zeros(self.n_states)
-        # [N, Q_1, Q_2, ...]
-        y = np.concatenate([[np.sum(y)], y])
+
+        if not self.agg_states:
+            # [N, Q_1, Q_2, ...]
+            y = np.concatenate([[np.sum(y)], y])
+
+        else:
+            aggregated = np.sum(self.agg_states * np.asarray(y), axis=1)
+            # [N, Q_1, Q_2, ..., aggregated_1, aggregated_2]
+
+            y = np.concatenate([[np.sum(y)], y, aggregated])
+
         for origin, destination, (coeff, degree_states, degree_parameters) in self.rules:
             # Note this implementation relies on 0.0**0==1.0
             if origin == -1:
@@ -404,6 +414,8 @@ class Model(_Model):
                                             parameters. Division is allowed, parenthesis are not. Use multiple rules to
                                             define additions or subtractions.
             sum_state (str): Name of a special state with the total population. Can be used in the coefficients.
+                             A suffixed form of the value provided (e.g., N_1) can also be used in the coefficients,
+                             this will be filled with the sum of states with the same suffix.
             nihil_state (str): Name of a special state used to described birth rules (when used as origin) and death
                                rules (when used as destination).
 
@@ -411,15 +423,25 @@ class Model(_Model):
 
         super().__init__(states, parameters, rules, sum_state, nihil_state)
 
-        all_states = [nihil_state, sum_state] + self.states
+        # A rule-based filtering could be done here
+        suffixes = {x.split("_")[-1] for x in self.states if "_" in x}
+        agg_states = {"N_" + suffix: [1 if s.endswith("_" + suffix) else 0 for s in self.states] for suffix in
+                      suffixes}
+        if agg_states:
+            self.agg_states, self.agg_rules = zip(*agg_states.items())
+            self.agg_states = list(self.agg_states)
+        else:
+            self.agg_states, self.agg_rules = [], []
+
+        all_states = [nihil_state, sum_state] + self.states + self.agg_states
 
         self._rules = [(all_states.index(origin) - 1,
                         all_states.index(destination) - 1,
-                        _monomial_from_str(s, [self.nihil_state, self.sum_state] + self.states, self.parameters))
+                        _monomial_from_str(s, all_states, self.parameters))
                        for origin, destination, s in self.rules]
 
     def _get_numerical_model(self, parameters):
-        return _NumericalModel(len(self.states), parameters, self._rules)
+        return _NumericalModel(len(self.states), parameters, self._rules, self.agg_rules)
 
     def solve_time(self, initial, parameters, t):
         """
