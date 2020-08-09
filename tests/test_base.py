@@ -20,7 +20,7 @@ def test_monomial():
         ["a/X c", (1, [0, -1, 0], [1, 0, 1])]
     ]
     for s, (coeff, states_exponents, coeffs_exponents) in cases:
-        a, b, c = comod._monomial_from_str(s, states, coeffs)
+        a, b, c = comod.base._monomial_from_str(s, states, coeffs)
 
         assert a == coeff
         assert np.array_equal(b, states_exponents)
