@@ -5,7 +5,7 @@ from scipy.integrate import odeint
 
 
 def test_monomial():
-    """Test monomyial conversion"""
+    """Test monomial conversion"""
     states = list("$NXY")
     coeffs = list("abc")
     cases = [
