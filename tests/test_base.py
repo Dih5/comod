@@ -1,7 +1,7 @@
 import comod
 
 import numpy as np
-from scipy.integrate import odeint
+from scipy.integrate import solve_ivp
 
 
 def test_monomial():
@@ -35,16 +35,18 @@ def test_SIR():
     beta = 0.2
     gamma = 0.1
 
+    N = sum(initial)
+
     # Manually solve with scipy
     # SIR differential equations
-    def deriv(y, t, N, beta, gamma):
+    def deriv(t, y):
         S, I, R = y
         dS_dt = -beta * S * I / N
         dI_dt = beta * S * I / N - gamma * I
         dR_dt = gamma * I
         return dS_dt, dI_dt, dR_dt
 
-    solution = odeint(deriv, initial, t, args=(sum(initial), beta, gamma)).T
+    solution = solve_ivp(deriv, (t[0], t[-1]), initial, t_eval=t).y
 
     # Solve with the package interface
     model = comod.Model(list("SIR"), list("bg"), [("S", "I", "b I / N"),

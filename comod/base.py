@@ -151,21 +151,28 @@ class _Model:
         array_code = "\\\\\n".join("\\dot{%s} &=& %s" % (state, dy[state]) for state in self.states)
         return "\\begin{array}{lcl} %s \n\\end{array}" % array_code
 
-    def solve(self, initial, parameters, t):
+    def solve(self, initial, parameters, t, **kwargs):
         """
         Solve the model numerically.
 
-        The solution is found using scipy.integrate.odeint, which uses lsoda from the FORTRAN library odepack.
+        The solution is found using scipy.integrate.solve_ivp, which uses by default an Explicit Runge-Kutta method of order 5(4).
 
         Args:
             initial (list of float): Initial population for each of the states.
             parameters (list of float): Values for the parameters.
             t (list of float): Mesh of time values for which the solution is found.
+            kwargs: Additional arguments passed to solve_ivp.
 
         Returns:
+            numpy.ndarray: Values of each component (first coordinate) at the t mesh (second).
 
         """
-        return integrate.odeint(self._get_numerical_model(parameters), initial, t).T
+        if isinstance(t, (float, int)):
+            bunch = integrate.solve_ivp(self._get_numerical_model(parameters), (0, t), initial, **kwargs)
+        else:
+            bunch = integrate.solve_ivp(self._get_numerical_model(parameters), (t[0], t[-1]), initial, t_eval=t,
+                                        **kwargs)
+        return bunch.y
 
     def solve_time(self, initial, parameters, t):
         """
@@ -334,7 +341,7 @@ class _NumericalModel:
         self.rules = rules
         self.agg_states = agg_states if agg_states is not None else []
 
-    def __call__(self, y, t, *args):
+    def __call__(self, t, y, *args):
         dy = np.zeros(self.n_states)
 
         if not self.agg_states:
@@ -387,9 +394,9 @@ class _NumericalTimeModel(_NumericalModel):
         self._parameters = parameters
         super().__init__(n_states, parameters, rules)
 
-    def __call__(self, y, t, *args):
+    def __call__(self, t, y, *args):
         self.parameters = [par(t) for par in self._parameters]
-        return super().__call__(y, t, *args)
+        return super().__call__(t, y, *args)
 
 
 class Model(_Model):
@@ -477,7 +484,7 @@ class _FunctionNumericalModel:
 
         self.sum_state = sum_state
 
-    def __call__(self, y, t, *args):
+    def __call__(self, t, y, *args):
         dy = np.zeros(self.n_states)
 
         y = np.concatenate([[np.sum(y)], y])
