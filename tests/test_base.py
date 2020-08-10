@@ -74,3 +74,57 @@ def test_SIR():
 
     solution3 = model.solve(initial, [beta, gamma], t)
     assert np.allclose(solution, solution3)
+
+
+def test_fit():
+    """Test model best-fit"""
+    model = comod.Model(list("SIR"), list("bg"), [("S", "I", "b I / N"),
+                                                  ("I", "R", "g")])
+
+    t = np.linspace(0, 150, 150)
+    values = model.solve((999, 1, 0),
+                         [0.3, 0.1],
+                         t,
+                         )
+
+    for target in ["y", "dy"]:
+        fit_pars = model.best_fit(
+            values,
+            t,
+            [0.2, 0.2],
+            target=target
+        ).x
+
+        assert np.allclose(fit_pars, [0.3, 0.1], rtol=0.01)
+
+
+def test_sliding_fit():
+    """Test best fit in sliding windows"""
+    model = comod.Model(list("SIR"), list("bg"), [("S", "I", "b I / N"),
+                                                  ("I", "R", "g")])
+
+    # A linear decreasing model for beta
+    def beta_time(t):
+        return max(0.1, 0.3 - t / 30 * 0.1)
+
+    t = np.linspace(0, 150, 150)
+    solution_time = model.solve_time((999, 1, 0),
+                                     [beta_time,
+                                      lambda x: 0.1],
+                                     t,
+                                     )
+
+    for target in ["y", "dy"]:
+        results = model.best_sliding_fit(
+            solution_time,
+            t,
+            [0.2, 0.2],
+            window_size=10,
+            step_size=15,
+            target=target,
+
+        )
+
+        # Note the tolerance must be increased, since the coefficients are actually not constant in each window
+        for time, values in results.iterrows():
+            assert np.allclose(values.values, [beta_time(time), 0.1], rtol=0.2)
