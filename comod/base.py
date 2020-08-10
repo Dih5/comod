@@ -111,7 +111,7 @@ class _Model:
         self.nihil_state = nihil_state
 
     def _get_numerical_model(self, parameters):
-        """Return a numerical model which calculates (y, t) -> dy"""
+        """Return a numerical model which calculates (t, y) -> dy"""
         raise NotImplementedError
 
     @classmethod
@@ -233,7 +233,7 @@ class _Model:
 
             def get_residuals(parameters):
                 m = self._get_numerical_model(parameters)
-                predicted_increments = [m(datum, time) for time, datum in zip(t, data)][:-1]
+                predicted_increments = [m(time, datum) for time, datum in zip(t, data)][:-1]
 
                 return np.reshape(real_increments - predicted_increments, (-1,)) * np.tile(component_weights,
                                                                                            len(data) - 1)
