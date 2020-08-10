@@ -499,7 +499,7 @@ class _FunctionNumericalModel:
         for origin, destination, f in self.rules:
             value = f(**kwargs)
             if origin == -1:
-                dy[destination - 1] += value
+                dy[destination - 1] += value * y[0]  # Birth proportionality
             elif destination == -1:
                 dy[origin - 1] -= value * y[origin]
             else:
