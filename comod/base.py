@@ -273,6 +273,8 @@ class _Model:
                                           second index is the time.
             t (list of float): Time mesh. Must be consistent with data.
             initial_pars (list of float): Initial values of the parameters.
+            window_size (int): Window size (number of time values in each window).
+            step_size (int): Window step size (number of time values between windows).
             target (str): Metric to reproduce. Available options are:
                           - "y": The curves themselves.
                           - "dy": The changes of the curves.
