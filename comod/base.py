@@ -135,8 +135,8 @@ class _Model:
         for origin, destination, coeff in self.rules:
             coeff = self._coef_to_latex(coeff)
 
-            if origin == self.nihil_state:
-                dy[destination] += " + %s" % coeff
+            if origin == self.nihil_state:  # special birth rule
+                dy[destination] += " + %s %s" % (coeff, self.sum_state)
             elif destination == self.nihil_state:
                 dy[origin] += " - %s %s" % (coeff, origin)
             else:
@@ -358,7 +358,7 @@ class _NumericalModel:
             # Note this implementation relies on 0.0**0==1.0
             if origin == -1:
                 dy[destination - 1] += coeff * np.prod(y ** degree_states) * np.prod(
-                    self.parameters ** degree_parameters)
+                    self.parameters ** degree_parameters) * y[0]  # Proportional to sum state
             elif destination == -1:
                 dy[origin - 1] -= coeff * np.prod(y ** degree_states) * np.prod(
                     self.parameters ** degree_parameters) * y[
@@ -411,7 +411,8 @@ class Model(_Model):
             rules (list of (str, str, str) tuples): Transition rules defined by origin state, destination state and
                                             multiplicative coefficient. The proportionality on the population of the
                                             origin state is automatically assumed (unless the rule is describing
-                                            births). The coefficient might be a product of real numbers, states, and
+                                            births¸ where proportionality to the total population is assumed).
+                                            The coefficient might be a product of real numbers, states, and
                                             parameters. Division is allowed, parenthesis are not. Use multiple rules to
                                             define additions or subtractions.
             sum_state (str): Name of a special state with the total population. Can be used in the coefficients.
@@ -542,7 +543,7 @@ class FunctionModel(_Model):
         return coeff.__name__
 
 
-def add_natural(model, birth_param="birth", death_param="mu", birth_state=None):
+def add_natural(model, birth_param="nu", death_param="mu", birth_state=None):
     """
     Add some "natural" birth and death dynamics to a model
 
@@ -558,6 +559,7 @@ def add_natural(model, birth_param="birth", death_param="mu", birth_state=None):
         Model: A new model with the extended dynamics.
 
     """
+    # Birth default to nu /ˈnjuː/ = new
     rules = model.rules[:]
     states = model.states[:]
     parameters = model.parameters[:]
