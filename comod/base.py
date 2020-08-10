@@ -258,7 +258,7 @@ class _Model:
                                 component_weights=component_weights, ls_kwargs=ls_kwargs).x
 
     def best_sliding_fit(self, data, t, initial_pars, window_size, step_size, target="dy", component_weights=None,
-                         ls_kwargs=None, time_criterion="last"):
+                         ls_kwargs=None, time_criterion="mean"):
         """
         Get a best fit of the model to the provided data
 
