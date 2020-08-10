@@ -335,9 +335,13 @@ class _NumericalModel:
                                     - degree_parameters: Tuple with the degrees of the parameters in the monomial.
         """
         self.n_states = n_states
-        self.parameters = parameters
-        self.rules = rules
         self.agg_states = agg_states if agg_states is not None else []
+
+        parameters = np.asarray(parameters)
+
+        # Store the fixed value obtained from the numerical coefficient and the parameters
+        self._rules = [(origin, destination, (coeff * np.prod(parameters ** degree_parameters), degree_states)) for
+                       origin, destination, (coeff, degree_states, degree_parameters) in rules]
 
     def __call__(self, t, y, *args):
         dy = np.zeros(self.n_states)
@@ -352,26 +356,19 @@ class _NumericalModel:
 
             y = np.concatenate([[np.sum(y)], y, aggregated])
 
-        for origin, destination, (coeff, degree_states, degree_parameters) in self.rules:
+        for origin, destination, (coeff, degree_states) in self._rules:
             # Note this implementation relies on 0.0**0==1.0
             if origin == -1:
-                dy[destination - 1] += coeff * np.prod(y ** degree_states) * np.prod(
-                    self.parameters ** degree_parameters) * y[0]  # Proportional to sum state
+                dy[destination - 1] += coeff * np.prod(y ** degree_states) * y[0]  # Proportional to sum state
             elif destination == -1:
-                dy[origin - 1] -= coeff * np.prod(y ** degree_states) * np.prod(
-                    self.parameters ** degree_parameters) * y[
-                                      origin]
+                dy[origin - 1] -= coeff * np.prod(y ** degree_states) * y[origin]
             else:
-                dy[origin - 1] -= coeff * np.prod(y ** degree_states) * np.prod(
-                    self.parameters ** degree_parameters) * y[
-                                      origin]
-                dy[destination - 1] += coeff * np.prod(y ** degree_states) * np.prod(
-                    self.parameters ** degree_parameters) * \
-                                       y[origin]
+                dy[origin - 1] -= coeff * np.prod(y ** degree_states) * y[origin]
+                dy[destination - 1] += coeff * np.prod(y ** degree_states) * y[origin]
         return dy
 
 
-class _NumericalTimeModel(_NumericalModel):
+class _NumericalTimeModel:
     """Mathematical form of a compartment model where the parameters are functions of the time"""
 
     def __init__(self, n_states, parameters, rules):
@@ -390,11 +387,12 @@ class _NumericalTimeModel(_NumericalModel):
                                     - degree_parameters: Tuple with the degrees of the parameters in the monomial.
         """
         self._parameters = parameters
-        super().__init__(n_states, parameters, rules)
+        self.n_states = n_states
+        self.rules = rules
 
     def __call__(self, t, y, *args):
-        self.parameters = [par(t) for par in self._parameters]
-        return super().__call__(t, y, *args)
+        parameters = [par(t) for par in self._parameters]
+        return _NumericalModel(self.n_states, parameters, self.rules)(t, y, *args)
 
 
 class Model(_Model):
