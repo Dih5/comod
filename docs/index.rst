@@ -6,6 +6,7 @@ comod
    :caption: Contents:
 
    demo.ipynb
+   models.ipynb
    modules.rst
 
 Indices and tables
