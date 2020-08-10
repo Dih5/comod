@@ -71,7 +71,7 @@ def _window(a, window_size=4, step_size=2, copy=False):
         return view
 
 
-def _sliding_time(t, window_size=4, step_size=2, criterion="last"):
+def _sliding_time(t, window_size=4, step_size=2, criterion="mean"):
     """Convenience function to extract times to represent a sliding window"""
     _t = _window(t, window_size=window_size, step_size=step_size)
     if criterion == "first":
@@ -276,11 +276,11 @@ class _Model:
                           - "dy": The changes of the curves.
             component_weights (list of float): A set of weights for each component of the model
             ls_kwargs (dict): Additional kwargs to pass to the least squares solver. Cf. scipy.optimize.least_squares.
-            time_criterion (str): Criterion used to asign a time value for each of the windows. Available values are:
+            time_criterion (str): Criterion used to assign a time value for each of the windows. Available values are:
                                   - "last": The last time in the window.
                                   - "first": The first time in the window.
                                   - "median": The median time of the points in the window.
-                                  - "mean": The mean time of the points in the window.
+                                  - "mean": The mean time of the points in the window (default).
 
         Returns:
             pd.DataFrame: A dataframe with the fits in each of the windows.
