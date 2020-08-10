@@ -443,21 +443,24 @@ class Model(_Model):
     def _get_numerical_model(self, parameters):
         return _NumericalModel(len(self.states), parameters, self._rules, self.agg_rules)
 
-    def solve_time(self, initial, parameters, t):
+    def solve_time(self, initial, parameters, t, **kwargs):
         """
         Solve the model numerically for parameters given as functions of time.
 
-        The solution is found using scipy.integrate.odeint, which uses lsoda from the FORTRAN library odepack.
+        The solution is found using scipy.integrate.solve_ivp, which uses by default an Explicit Runge-Kutta method of order 5(4).
 
         Args:
             initial (list of float): Initial population for each of the states.
             parameters (list of callable): Functions of time defining the parameters.
             t (list of float): Mesh of time values for which the solution is found.
+            kwargs: Additional arguments passed to solve_ivp.
 
         Returns:
+            numpy.ndarray: Values of each component (first coordinate) at the t mesh (second).
 
         """
-        return integrate.odeint(_NumericalTimeModel(len(self.states), parameters, self._rules), initial, t).T
+        return integrate.solve_ivp(_NumericalTimeModel(len(self.states), parameters, self._rules), (t[0], t[-1]),
+                                   initial, t_eval=t, **kwargs).y
 
 
 class _FunctionNumericalModel:
