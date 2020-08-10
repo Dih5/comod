@@ -167,12 +167,8 @@ class _Model:
             numpy.ndarray: Values of each component (first coordinate) at the t mesh (second).
 
         """
-        if isinstance(t, (float, int)):
-            bunch = integrate.solve_ivp(self._get_numerical_model(parameters), (0, t), initial, **kwargs)
-        else:
-            bunch = integrate.solve_ivp(self._get_numerical_model(parameters), (t[0], t[-1]), initial, t_eval=t,
-                                        **kwargs)
-        return bunch.y
+        return integrate.solve_ivp(self._get_numerical_model(parameters), (t[0], t[-1]), initial, t_eval=t,
+                                   **kwargs).y
 
     def solve_time(self, initial, parameters, t):
         """
