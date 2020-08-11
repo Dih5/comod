@@ -4,20 +4,56 @@ import re
 import numpy as np
 
 
+def _full_adjacency(n):
+    """Get the adjacency matrix of a complete graph"""
+    return np.ones((n, n)) - np.identity(n)
+
+
 def _linear_adjacency(n):
-    """Get the adjacency matrix of a linear network"""
+    """Get the adjacency matrix of a linear graph"""
     return np.diag(np.ones([n - 1]), k=-1) + np.diag(np.ones([n - 1]), k=1)
+
+
+def _cycle_adjacency(n):
+    """Get the adjacency matrix of a cycle graph"""
+    if n == 1:
+        return np.asarray([[0.0]])
+    m = np.diag(np.ones([n - 1]), k=-1) + np.diag(np.ones([n - 1]), k=1)
+    m[0][-1] = 1
+    m[-1][0] = 1
+    return m
+
+
+def _star_adjacency(n):
+    """Get the adjacency matrix of a star graph"""
+    m = np.zeros((n, n))
+    m[0] = np.ones(n)
+    m[:, 0] = np.ones(n)
+    m[0, 0] = 0
+    return m
+
+
+_graph_models = {"full": _full_adjacency, "linear": _linear_adjacency, "cycle": _cycle_adjacency,
+                 "star": _star_adjacency}
 
 
 class CommunityModel(Model):
 
-    def __init__(self, base_model, communities, exchange_term="m", equal_parameters=False, symmetric_matrix=False,
+    def __init__(self, base_model, communities, topology=None, exchange_term="m", equal_parameters=False,
+                 symmetric_matrix=False,
                  labels=None):
         """
 
         Args:
             base_model (Model): A base model used for each of the communities.
             communities (int or list of list): The number of communities or a matrix describing their connections.
+            topology (str): A model to use to define community relationships when communities is an integer.
+                         Available values are:
+                         - "full": All communities are connected (complete graph model $K_n$).
+                         - "linear": Linear connection of communities (path graph model $P_n$).
+                         - "cycle": Cyclical connection of communities (cycle graph model $C_n$).
+                         - "star": One community (the first one) is connected to the rest¸ with no other connection
+                                   (star graph model $S_n=K_{1,n-1}$).
             exchange_term (str): Name of the parameter associated to intercommunity transitions.
             equal_parameters (bool): Whether to assume the epidemiological parameters do not depend on the community.
             symmetric_matrix (bool): Whether to assume the community transition matrix is symmetric.
@@ -25,8 +61,12 @@ class CommunityModel(Model):
 
         """
         if isinstance(communities, int):
-            communities = np.ones((communities, communities)) - np.identity(communities)
-
+            if topology is None:
+                topology = "full"
+            try:
+                communities = _graph_models[topology](communities)
+            except KeyError as e:
+                raise ValueError("Invalid model. Must be one the following:\n%s" % ", ".join(_graph_models.keys()))
         n = len(communities)
 
         community_labels = [str(i) for i in range(1, n + 1)] if labels is None else list(labels)
