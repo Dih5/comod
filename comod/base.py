@@ -678,7 +678,7 @@ class _FunctionNumericalModel:
 class FunctionModel(_Model):
     """A compartment model with transition rules defined by callables"""
 
-    def __init__(self, states=None, parameters=None, rules=None, sum_state="N", nihil_state="_"):
+    def __init__(self, states=None, parameters=None, rules=None, sum_state="N", nihil_state="!"):
         """
 
         Args:
