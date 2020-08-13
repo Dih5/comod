@@ -1,31 +1,31 @@
 from comod import Model
 
 sir = Model("SIR",
-            "bg",
+            ["beta", "gamma"],
             [
-                ("S", "I", "b I / N"),
-                ("I", "R", "g")
+                ("S", "I", "beta I / N"),
+                ("I", "R", "gamma")
             ])
 
 sis = Model("SI",
-            "bg",
+            ["beta", "gamma"],
             [
-                ("S", "I", "b I / N"),
-                ("I", "S", "g")
+                ("S", "I", "beta I / N"),
+                ("I", "S", "gamma")
             ])
 
 seir = Model("SEIR",
-             "bgd",
+             ["beta", "gamma", "delta"],
              [
-                 ("S", "E", "b I / N"),
-                 ("E", "I", "d"),
-                 ("I", "R", "g")
+                 ("S", "E", "beta I / N"),
+                 ("E", "I", "gamma"),
+                 ("I", "R", "delta")
              ])
 
 sirs = Model("SIR",
-             "bge",
+             ["beta", "gamma", "epsilon"],
              [
-                 ("S", "I", "b I / N"),
-                 ("I", "R", "g"),
-                 ("R", "S", "e")
+                 ("S", "I", "beta I / N"),
+                 ("I", "R", "gamma"),
+                 ("R", "S", "epsilon")
              ])
