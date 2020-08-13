@@ -5,6 +5,8 @@
 import os
 from setuptools import setup, find_packages
 
+extras = ["sympy"]
+
 setup(author="Dih5",
       author_email='dihedralfive@gmail.com',
       classifiers=[
@@ -20,8 +22,9 @@ setup(author="Dih5",
       ],
       description='Compartmental modelling Python package',
       extras_require={
-          "docs": ["nbsphinx", "sphinx-rtd-theme", "IPython"],
-          "test": ["pytest"],
+          "extras": extras,
+          "docs": ["nbsphinx", "sphinx-rtd-theme", "IPython"] + extras,
+          "test": ["pytest"] + extras,
       },
       keywords=[],
       name='comod',

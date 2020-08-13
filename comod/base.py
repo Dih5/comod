@@ -5,6 +5,11 @@ import pandas as pd
 from scipy import integrate, optimize
 import igraph
 
+try:
+    import sympy
+except ModuleNotFoundError:
+    sympy = None
+
 
 def _monomial_from_str(s, states, coeffs):
     """Transform a rule from a Model into a rule of _NumericalModel"""
@@ -113,6 +118,29 @@ class _Model:
     def _get_numerical_model(self, parameters):
         """Return a numerical model which calculates (t, y) -> dy"""
         raise NotImplementedError
+
+    def get_sympy(self):
+        """Try to obtain a symbolic version of the model using sympy"""
+        assert sympy is not None, "The sympy package is needed for symbolic manipulation"
+        return sympy.Matrix(
+            self._get_numerical_model(sympy.symbols(self.parameters))(sympy.symbols('t'), sympy.symbols(self.states)))
+
+    def get_fixed_points(self):
+        """
+        Find the fixed points and their jacobians using sympy.
+
+        Returns:
+            list of (tuple of sympy.Expr, sympy.Matrix): Each fixed point as a tuple of sympy expressions (might be a
+                                                         family of points) and their Jacobians.
+
+        """
+        assert sympy is not None, "The sympy package is needed for symbolic manipulation"
+        symbolic = self.get_sympy()
+        fixed = sympy.solve([sympy.Eq(f, 0) for f in symbolic], *sympy.symbols(self.states))
+        j = sympy.Matrix(symbolic).jacobian(sympy.symbols(self.states))
+        jacobians = [j.subs(list(zip(sympy.symbols(self.states), f))) for f in fixed]
+
+        return list(zip(fixed, jacobians))
 
     @classmethod
     def _coef_to_latex(cls, coeff):
@@ -344,7 +372,7 @@ class _NumericalModel:
                        origin, destination, (coeff, degree_states, degree_parameters) in rules]
 
     def __call__(self, t, y, *args):
-        dy = np.zeros(self.n_states)
+        dy = np.zeros(self.n_states).tolist()  # Cast to python list to avoid casting errors when using sympy
 
         if not self.agg_states:
             # [N, Q_1, Q_2, ...]
@@ -365,7 +393,7 @@ class _NumericalModel:
             else:
                 dy[origin - 1] -= coeff * np.prod(y ** degree_states) * y[origin]
                 dy[destination - 1] += coeff * np.prod(y ** degree_states) * y[origin]
-        return dy
+        return np.asarray(dy)
 
 
 class _NumericalTimeModel:
