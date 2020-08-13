@@ -1,14 +1,30 @@
 import re
+import warnings
+import tempfile
 
 import numpy as np
 import pandas as pd
 from scipy import integrate, optimize
-import igraph
+
+try:
+    import igraph
+except ModuleNotFoundError:
+    igraph = None
 
 try:
     import sympy
 except ModuleNotFoundError:
     sympy = None
+
+try:
+    import network2tikz
+except ModuleNotFoundError:
+    network2tikz = None
+
+try:
+    from pdf2image import convert_from_path as pdf2image
+except ModuleNotFoundError:
+    pdf2image = None
 
 # Special tokens redered with a LaTeX macro
 _latex_symbols = ['alpha',
@@ -129,6 +145,25 @@ def _sliding_time(t, window_size=4, step_size=2, criterion="mean"):
         return np.mean(_t, axis=1)
     else:
         raise ValueError("Invalid criterion")
+
+
+def _is_notebook():
+    """Detect if running in a notebook"""
+    # Not sure this covers
+    try:
+        ipython_module = get_ipython().__module__
+        if ipython_module in ['ipykernel.zmqshell', 'google.colab._shell']:
+            # Surely a notebook
+            return True
+        elif ipython_module in ['IPython.terminal.interactiveshell']:
+            # Surely not a notebook
+            return False
+        else:
+            warnings.warn("Unknown iPython detected: %s. Assuming not a notebook.")
+            return False
+    except NameError:
+        # Surely not iPython
+        return False
 
 
 class _Model:
@@ -361,7 +396,7 @@ class _Model:
 
         return pd.DataFrame(values, index=t2, columns=self.parameters)
 
-    def plot_graph(self, **kwargs):
+    def plot_igraph(self, **kwargs):
         """
         Get a plot of a graph representing the model using igraph.
 
@@ -372,6 +407,7 @@ class _Model:
             igraph.Plot: The plot of the graph.
 
         """
+        assert igraph is not None, "igraph not available"
         g = igraph.Graph(directed=True)
         g.add_vertices([self.nihil_state] + self.states)
         g.add_edges([r[:2] for r in self.rules])
@@ -383,6 +419,47 @@ class _Model:
             kwargs["vertex_color"] = ["red"] + ["blue"] * len(self.states)
 
         return igraph.plot(g, **kwargs)
+
+    def plot_tikz(self, filename=None, **kwargs):
+        """
+        Get a plot of a graph representing the model using tikz.
+
+        Args:
+            filename: How to save the generated tikz. Posible patterns follow:
+                      - None: If a jupyter environment is detected, returns a Pillow image if libraries are available.
+                              Otherwise, open a pdf in an external editor.
+                      - "*.tex": Generate a TeX file with the code.
+                      - "*.pdf": Generate a rendered pdf file.
+            **kwargs: Additional arguments to pass to network2tikz.plot. Cf. https://pypi.org/project/network2tikz/.
+
+        Returns:
+            PIL.Image.Image or None: An image with a preview of the graph if filename is None and running as a notebook.
+
+        """
+        assert network2tikz is not None, "network2tikz not available"
+        nodes = [self.nihil_state] + self.states
+        edges = [r[:2] for r in self.rules]
+
+        style = {}
+        style['node_label'] = [""] + self.states
+        style['edge_label'] = ["$%s$" % self._coef_to_latex(r[2]) for r in self.rules]
+        style['node_color'] = ["red"] + ["blue"] * len(self.states)
+        style['edge_directed'] = True
+
+        style = {**style, **kwargs}
+
+        # network2tikz shows a pdf in an external editor if filename is None. Change if running in a notebook
+        if filename is None and _is_notebook():
+            if pdf2image is None:
+                warnings.warn("Image will be shown externally since pdf2image is not available")
+                # Default behaviour below
+            else:
+                with tempfile.NamedTemporaryFile(suffix=".pdf") as f:
+                    network2tikz.plot((nodes, edges), f.name, **style)
+                    return pdf2image(f.name)[0]
+
+        # In any case
+        return network2tikz.plot((nodes, edges), filename, **style)
 
 
 class _NumericalModel:

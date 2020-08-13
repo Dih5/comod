@@ -5,7 +5,11 @@
 import os
 from setuptools import setup, find_packages
 
-extras = ["sympy"]
+extras = ["sympy",  # Symbolic manipulation to find fixed points
+          "network2tikz",  # Exports graphs to tikz
+          "pdf2image",  # Show tikz generated graphs in notebooks
+          "python-igraph",  # Alternative plot method
+          ]
 
 setup(author="Dih5",
       author_email='dihedralfive@gmail.com',
@@ -29,7 +33,7 @@ setup(author="Dih5",
       keywords=[],
       name='comod',
       packages=find_packages(include=['comod'], exclude=["demos", "tests", "docs"]),
-      install_requires=["numpy", "scipy", "pandas", "python-igraph"],
+      install_requires=["numpy", "scipy", "pandas"],
       url='https://github.com/dih5/comod',
       version='0.1.1',
 
