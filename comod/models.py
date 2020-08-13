@@ -21,3 +21,11 @@ seir = Model("SEIR",
                  ("E", "I", "d"),
                  ("I", "R", "g")
              ])
+
+sirs = Model("SIR",
+             "bge",
+             [
+                 ("S", "I", "b I / N"),
+                 ("I", "R", "g"),
+                 ("R", "S", "e")
+             ])
