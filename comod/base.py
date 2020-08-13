@@ -169,7 +169,7 @@ def _is_notebook():
 class _Model:
     """A compartment model"""
 
-    def __init__(self, states=None, parameters=None, rules=None, sum_state="N", nihil_state="$"):
+    def __init__(self, states=None, parameters=None, rules=None, sum_state="N", nihil_state="!"):
         """
 
         Args:
@@ -551,7 +551,7 @@ def _latex_normalize(token):
 class Model(_Model):
     """A compartment model with transition rules defined by strings"""
 
-    def __init__(self, states=None, parameters=None, rules=None, sum_state="N", nihil_state="$"):
+    def __init__(self, states=None, parameters=None, rules=None, sum_state="N", nihil_state="!"):
         """
 
         Args:
