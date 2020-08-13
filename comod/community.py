@@ -25,7 +25,7 @@ def _cycle_adjacency(n):
 
 
 def _star_adjacency(n):
-    """Get the adjacency matrix of a star graph"""
+    """Get the adjacency matrix of a star graph with its center in the first coordinate"""
     m = np.zeros((n, n))
     m[0] = np.ones(n)
     m[:, 0] = np.ones(n)
@@ -33,8 +33,17 @@ def _star_adjacency(n):
     return m
 
 
+def _star_adjacency_bis(n):
+    """Get the adjacency matrix of a star graph with its center in the last coordinate"""
+    m = np.zeros((n, n))
+    m[-1] = np.ones(n)
+    m[:, -1] = np.ones(n)
+    m[-1, -1] = 0
+    return m
+
+
 _graph_models = {"full": _full_adjacency, "linear": _linear_adjacency, "cycle": _cycle_adjacency,
-                 "star": _star_adjacency}
+                 "star": _star_adjacency, "star2": _star_adjacency_bis}
 
 
 class CommunityModel(Model):
@@ -54,6 +63,8 @@ class CommunityModel(Model):
                          - "cycle": Cyclical connection of communities (cycle graph model $C_n$).
                          - "star": One community (the first one) is connected to the rest¸ with no other connection
                                    (star graph model $S_n=K_{1,n-1}$).
+                         - "star2": Same as "star" with the fully connected community in the last position
+                                    (also $S_n=K_{1,n-1}$, but with different indexing). 
             exchange_term (str): Name of the parameter associated to intercommunity transitions.
             equal_parameters (bool): Whether to assume the epidemiological parameters do not depend on the community.
             symmetric_matrix (bool): Whether to assume the community transition matrix is symmetric.
