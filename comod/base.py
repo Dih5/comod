@@ -401,7 +401,9 @@ class _Model:
         Get a plot of a graph representing the model using igraph.
 
         Args:
-            **kwargs: Additional arguments to pass to igraph.plot.
+            **kwargs: Additional arguments to pass to igraph.plot. Nodes are ordered as the instance states, with the
+                      special nihil state in the first position, but it is only added if births or deaths are found
+                      in the rules.
 
         Returns:
             igraph.Plot: The plot of the graph.
@@ -409,14 +411,17 @@ class _Model:
         """
         assert igraph is not None, "igraph not available"
         g = igraph.Graph(directed=True)
-        g.add_vertices([self.nihil_state] + self.states)
+
+        use_nihil = any([self.nihil_state in x[:2] for x in self.rules])
+
+        g.add_vertices(([self.nihil_state] if use_nihil else []) + self.states)
         g.add_edges([r[:2] for r in self.rules])
         g.es["label"] = [self._coef_to_plot(r[2]) for r in self.rules]
 
         if "vertex_label" not in kwargs:
-            kwargs["vertex_label"] = [""] + self.states
+            kwargs["vertex_label"] = ([""] if use_nihil else []) + self.states
         if "vertex_color" not in kwargs:
-            kwargs["vertex_color"] = ["red"] + ["blue"] * len(self.states)
+            kwargs["vertex_color"] = (["red"] if use_nihil else []) + ["blue"] * len(self.states)
 
         return igraph.plot(g, **kwargs)
 
@@ -437,14 +442,20 @@ class _Model:
 
         """
         assert network2tikz is not None, "network2tikz not available"
-        nodes = [self.nihil_state] + self.states
+        nodes = self.states
         edges = [r[:2] for r in self.rules]
 
         style = {}
-        style['node_label'] = [""] + self.states
+        style['node_label'] = self.states
         style['edge_label'] = ["$%s$" % self._coef_to_latex(r[2]) for r in self.rules]
-        style['node_color'] = ["red"] + ["blue"] * len(self.states)
+        style['node_color'] = ["blue"] * len(self.states)
         style['edge_directed'] = True
+
+        if any([self.nihil_state in x[:2] for x in self.rules]):
+            # prepend nihil_state
+            nodes = [self.nihil_state] + nodes
+            style['node_color'] = ["red"] + style['node_color']
+            style['node_label'] = [""] + style['node_label']
 
         style = {**style, **kwargs}
 
