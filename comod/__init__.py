@@ -5,3 +5,4 @@ __author__ = 'Dih5 <dihedralfive@gmail.com>'
 
 from .base import Model, FunctionModel, add_natural
 from .community import CommunityModel
+from .models import sir, seir, sirs, sis
