@@ -10,6 +10,46 @@ try:
 except ModuleNotFoundError:
     sympy = None
 
+# Special tokens redered with a LaTeX macro
+_latex_symbols = ['alpha',
+                  'beta',
+                  'gamma',
+                  'Gamma',
+                  'delta',
+                  'Delta',
+                  'epsilon',
+                  'varepsilon',
+                  'zeta',
+                  'eta',
+                  'theta',
+                  'vartheta',
+                  'Theta',
+                  'iota',
+                  'kappa',
+                  'lambda',
+                  'Lambda',
+                  'mu',
+                  'nu',
+                  'xi',
+                  'Xi',
+                  'pi',
+                  'Pi',
+                  'rho',
+                  'varrho',
+                  'sigma',
+                  'Sigma',
+                  'tau',
+                  'upsilon',
+                  'Upsilon',
+                  'phi',
+                  'varphi',
+                  'Phi',
+                  'chi',
+                  'psi',
+                  'Psi',
+                  'omega',
+                  'Omega']
+
 
 def _monomial_from_str(s, states, coeffs):
     """Transform a rule from a Model into a rule of _NumericalModel"""
@@ -164,19 +204,20 @@ class _Model:
             coeff = self._coef_to_latex(coeff)
 
             if origin == self.nihil_state:  # special birth rule
-                dy[destination] += " + %s %s" % (coeff, self.sum_state)
+                dy[destination] += " + %s %s" % (coeff, self._coef_to_latex(self.sum_state))
             elif destination == self.nihil_state:
-                dy[origin] += " - %s %s" % (coeff, origin)
+                dy[origin] += " - %s %s" % (coeff, self._coef_to_latex(origin))
             else:
-                dy[destination] += " + %s %s" % (coeff, origin)
-                dy[origin] += " - %s %s" % (coeff, origin)
+                dy[destination] += " + %s %s" % (coeff, self._coef_to_latex(origin))
+                dy[origin] += " - %s %s" % (coeff, self._coef_to_latex(origin))
 
         # Replace leading " +" and " -"
         for state in self.states:
             dy[state] = re.sub(r"^ \+ ", "", dy[state])
             dy[state] = re.sub(r"^ - ", "-", dy[state])
 
-        array_code = "\\\\\n".join("\\dot{%s} &=& %s" % (state, dy[state]) for state in self.states)
+        array_code = "\\\\\n".join(
+            "\\dot{%s} &=& %s" % (self._coef_to_latex(state), dy[state]) for state in self.states)
         return "\\begin{array}{lcl} %s \n\\end{array}" % array_code
 
     def solve(self, initial, parameters, t, **kwargs):
@@ -423,6 +464,13 @@ class _NumericalTimeModel:
         return _NumericalModel(self.n_states, parameters, self.rules)(t, y, *args)
 
 
+def _latex_normalize(token):
+    """Get a normalized LaTeX version of a token"""
+    if token in _latex_symbols:
+        return "\\" + token
+    return token
+
+
 class Model(_Model):
     """A compartment model with transition rules defined by strings"""
 
@@ -465,6 +513,12 @@ class Model(_Model):
                         all_states.index(destination) - 1,
                         _monomial_from_str(s, all_states, self.parameters))
                        for origin, destination, s in self.rules]
+
+    @classmethod
+    def _coef_to_latex(cls, coeff):
+        # Ensure / is padded
+        coeff = " / ".join(coeff.split("/"))
+        return " ".join(_latex_normalize(token) for token in coeff.split())
 
     def _get_numerical_model(self, parameters):
         return _NumericalModel(len(self.states), parameters, self._rules, self.agg_rules)
