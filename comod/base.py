@@ -655,7 +655,7 @@ class _FunctionNumericalModel:
         self.sum_state = sum_state
 
     def __call__(self, t, y, *args):
-        dy = np.zeros(self.n_states)
+        dy = np.zeros(self.n_states).tolist()
 
         y = np.concatenate([[np.sum(y)], y])
 
@@ -672,7 +672,7 @@ class _FunctionNumericalModel:
             else:
                 dy[origin - 1] -= value * y[origin]
                 dy[destination - 1] += value * y[origin]
-        return dy
+        return np.asarray(dy)
 
 
 class FunctionModel(_Model):
