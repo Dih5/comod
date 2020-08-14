@@ -9,6 +9,21 @@
 
 Compartmental modelling Python package
 
+## Preview
+![alt tag](https://raw.github.com/dih5/comod/master/imgs/motivation1.png)
+![alt tag](https://raw.github.com/dih5/comod/master/imgs/motivation2.png)
+
+
+## Features
+- Define a model with simple rules as strings or with custom functions.
+- Pre-defined models like SIR, SIS, SEIR, ...
+- Community-extensions of models.
+- Solve numerically for fixed or time-dependent parameters.
+- Best-fit to existing data, posibly using time windows.
+- Create compartment graphs.
+- Export LaTeX.
+- Export to Wolfram Language (Mathematica).
+
 
 ## Installation
 Assuming you have a [Python3](https://www.python.org/) distribution with [pip](https://pip.pypa.io/en/stable/installing/), to install a development version, cd to the directory with this file and:
