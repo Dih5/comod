@@ -166,6 +166,10 @@ def _is_notebook():
         return False
 
 
+def _escape_state(s):
+    return s.replace("_", "-")
+
+
 class _Model:
     """A compartment model"""
 
@@ -442,11 +446,11 @@ class _Model:
 
         """
         assert network2tikz is not None, "network2tikz not available"
-        nodes = self.states
-        edges = [r[:2] for r in self.rules]
+        nodes = [_escape_state(s) for s in self.states]
+        edges = [(_escape_state(r[0]), _escape_state(r[1])) for r in self.rules]
 
         style = {}
-        style['node_label'] = self.states
+        style['node_label'] = ["$%s$" % _latex_normalize(s) for s in self.states]
         style['edge_label'] = ["$%s$" % self._coef_to_latex(r[2]) for r in self.rules]
         style['node_color'] = ["blue"] * len(self.states)
         style['edge_directed'] = True
@@ -556,6 +560,10 @@ def _latex_normalize(token):
     """Get a normalized LaTeX version of a token"""
     if token in _latex_symbols:
         return "\\" + token
+    if "_" in token:
+        # a_b_c... -> a{b,c...}
+        prefix, index = token.split("_", 1)
+        token = "%s_{%s}" % (prefix, index.replace("_", ","))
     return token
 
 
