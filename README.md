@@ -13,6 +13,8 @@ Compartmental modelling Python package
 ![alt tag](https://raw.github.com/dih5/comod/master/imgs/motivation1.png)
 ![alt tag](https://raw.github.com/dih5/comod/master/imgs/motivation2.png)
 
+Check the [docs](https://comod.readthedocs.io/en/latest/) to see more.
+
 
 ## Features
 - Define a model with simple rules as strings or with custom functions.
@@ -26,10 +28,24 @@ Compartmental modelling Python package
 
 
 ## Installation
-Assuming you have a [Python3](https://www.python.org/) distribution with [pip](https://pip.pypa.io/en/stable/installing/), to install a development version, cd to the directory with this file and:
+Assuming you have a [Python3](https://www.python.org/) distribution with [pip](https://pip.pypa.io/en/stable/installing/), the latest pypi release can be installed with:
+```
+pip3 install comod
+```
+To install the optional dependencies you can run
+```
+pip3 install 'comod[extras]'
+```
+Mind the quotes.
+
+
+## Developer information
+### Instalation
+
+To install a development version, cd to the directory with this file and:
 
 ```
-pip3 install -e .
+pip3 install -e '.[test]'
 ```
 As an alternative, a virtualenv might be used to install the package:
 ```
@@ -37,16 +53,10 @@ As an alternative, a virtualenv might be used to install the package:
 virtualenv -p /usr/bin/python3.6 venv
 source venv/bin/activate
 # Install the package
-pip3 install -e .
+pip3 install -e '.[test]'
 ```
 
-To install also the dependencies to run the tests or to generate the documentation install some of the extras like
-```
-pip3 install -e '.[docs,test]'
-```
-Mind the quotes.
-
-## Documentation
+### Documentation
 To generate the documentation, the *docs* extra dependencies must be installed.
 
 To generate an html documentation with sphinx run:
@@ -61,7 +71,7 @@ make pdf
 
 
 
-## Test
+### Test
 To run the unitary tests:
 ```
 make test
