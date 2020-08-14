@@ -338,7 +338,7 @@ class _Model:
 
         system = ",\n".join(
             "D[%s, t] == %s" % (self._coef_to_wolfram(state), dy[state]) for state in self.states)
-        return '<|"system" -> {%s}, "states" -> {%s}, "parameters" -> {%s}|>' % (
+        return '<|"system" -> {%s},\n"states" -> {%s},\n"parameters" -> {%s}|>' % (
             system, ",".join(self._coef_to_wolfram(s) for s in self.states),
             ",".join(self._coef_to_wolfram(p) for p in self.parameters))
 
