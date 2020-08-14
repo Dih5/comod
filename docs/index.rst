@@ -7,6 +7,7 @@ comod
 
    demo.ipynb
    models.ipynb
+   wolfram.ipynb
    modules.rst
 
 Indices and tables
