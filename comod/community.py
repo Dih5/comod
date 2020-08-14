@@ -107,7 +107,7 @@ class CommunityModel(Model):
         for i, i_label in enumerate(community_labels):
             for j, j_label in enumerate(community_labels):
                 if communities[i][j]:
-                    suffix = "_{%s,%s}" % (
+                    suffix = "_%s_%s" % (
                         (i_label, j_label) if not symmetric_matrix else (min(i_label, j_label), max(i_label, j_label)))
                     if exchange_term + suffix not in all_parameters:
                         all_parameters += [exchange_term + suffix]
