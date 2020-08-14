@@ -8,22 +8,22 @@ from scipy import integrate, optimize
 
 try:
     import igraph
-except ModuleNotFoundError:
+except ImportError:
     igraph = None
 
 try:
     import sympy
-except ModuleNotFoundError:
+except ImportError:
     sympy = None
 
 try:
     import network2tikz
-except ModuleNotFoundError:
+except ImportError:
     network2tikz = None
 
 try:
     from pdf2image import convert_from_path as pdf2image
-except ModuleNotFoundError:
+except ImportError:
     pdf2image = None
 
 # Special tokens redered with a LaTeX macro
