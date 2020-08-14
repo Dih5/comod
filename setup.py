@@ -5,6 +5,10 @@
 import os
 from setuptools import setup, find_packages
 
+# Get the long description from the README file
+with open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'README.md')) as f:
+    long_description = f.read()
+
 extras = ["sympy",  # Symbolic manipulation to find fixed points
           "network2tikz",  # Exports graphs to tikz
           "pdf2image",  # Show tikz generated graphs in notebooks
@@ -31,6 +35,8 @@ setup(author="Dih5",
           "test": ["pytest"] + extras,
       },
       keywords=[],
+      long_description=long_description,
+      long_description_content_type='text/markdown',
       name='comod',
       packages=find_packages(include=['comod'], exclude=["demos", "tests", "docs"]),
       install_requires=["numpy", "scipy", "pandas"],
