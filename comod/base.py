@@ -66,6 +66,54 @@ _latex_symbols = ['alpha',
                   'omega',
                   'Omega']
 
+_wolfram_symbols = {"alpha": "\[Alpha]",
+                    "beta": r"\[Beta]",
+                    "gamma": r"\[Gamma]",
+                    "delta": r"\[Delta]",
+                    "epsilon": r"\[Epsilon]",
+                    "zeta": r"\[Zeta]",
+                    "eta": r"\[Eta]",
+                    "theta": r"\[Theta]",
+                    "iota": r"\[Iota]",
+                    "kappa": r"\[Kappa]",
+                    "lambda": r"\[Lambda]",
+                    "mu": r"\[Mu]",
+                    "nu": r"\[Nu]",
+                    "xi": r"\[Xi]",
+                    "omicron": r"\[Omicron]",
+                    "rho": r"\[Rho]",
+                    "sigma": r"\[Sigma]",
+                    "tau": r"\[Tau]",
+                    "upsilon": r"\[Upsilon]",
+                    "phi": r"\[Phi]",
+                    "chi": r"\[Chi]",
+                    "psi": r"\[Psi]",
+                    "omega": r"\[Omega]",
+                    "Alpha": "\[CapitalAlpha]",
+                    "Beta": r"\[CapitalBeta]",
+                    "Gamma": r"\[CapitalGamma]",
+                    "Delta": r"\[CapitalDelta]",
+                    "Epsilon": r"\[CapitalEpsilon]",
+                    "Zeta": r"\[CapitalZeta]",
+                    "Eta": r"\[CapitalEta]",
+                    "Theta": r"\[CapitalTheta]",
+                    "Iota": r"\[CapitalIota]",
+                    "Kappa": r"\[CapitalKappa]",
+                    "Lambda": r"\[CapitalLambda]",
+                    "Mu": r"\[CapitalMu]",
+                    "Nu": r"\[CapitalNu]",
+                    "Xi": r"\[CapitalXi]",
+                    "Omicron": r"\[CapitalOmicron]",
+                    "Rho": r"\[CapitalRho]",
+                    "Sigma": r"\[CapitalSigma]",
+                    "Tau": r"\[CapitalTau]",
+                    "Upsilon": r"\[CapitalUpsilon]",
+                    "Phi": r"\[CapitalPhi]",
+                    "Chi": r"\[CapitalChi]",
+                    "Psi": r"\[CapitalPsi]",
+                    "Omega": r"\[CapitalOmega]"
+                    }
+
 
 def _monomial_from_str(s, states, coeffs):
     """Transform a rule from a Model into a rule of _NumericalModel"""
@@ -225,6 +273,9 @@ class _Model:
     def _coef_to_latex(cls, coeff):
         return str(coeff)
 
+    def _coef_to_wolfram(self, coeff):
+        return str(coeff)
+
     @classmethod
     def _coef_to_plot(cls, coeff):
         return str(coeff)
@@ -258,6 +309,38 @@ class _Model:
         array_code = "\\\\\n".join(
             "\\dot{%s} &=& %s" % (self._coef_to_latex(state), dy[state]) for state in self.states)
         return "\\begin{array}{lcl} %s \n\\end{array}" % array_code
+
+    def to_wolfram(self):
+        """
+        Get a Wolfram representation of the differential equations of the model.
+
+        Returns:
+            str: Wolfram code.
+
+        """
+        dy = {state: "" for state in self.states}
+
+        for origin, destination, coeff in self.rules:
+            coeff = self._coef_to_wolfram(coeff)
+
+            if origin == self.nihil_state:  # special birth rule
+                dy[destination] += " + %s %s" % (coeff, self._coef_to_wolfram(self.sum_state))
+            elif destination == self.nihil_state:
+                dy[origin] += " - %s %s" % (coeff, self._coef_to_wolfram(origin))
+            else:
+                dy[destination] += " + %s %s" % (coeff, self._coef_to_wolfram(origin))
+                dy[origin] += " - %s %s" % (coeff, self._coef_to_wolfram(origin))
+
+        # Replace leading " +" and " -"
+        for state in self.states:
+            dy[state] = re.sub(r"^ \+ ", "", dy[state])
+            dy[state] = re.sub(r"^ - ", "-", dy[state])
+
+        system = ",\n".join(
+            "D[%s, t] == %s" % (self._coef_to_wolfram(state), dy[state]) for state in self.states)
+        return '<|"system" -> {%s}, "states" -> {%s}, "parameters" -> {%s}|>' % (
+            system, ",".join(self._coef_to_wolfram(s) for s in self.states),
+            ",".join(self._coef_to_wolfram(p) for p in self.parameters))
 
     def solve(self, initial, parameters, t, **kwargs):
         """
@@ -567,6 +650,26 @@ def _latex_normalize(token):
     return token
 
 
+def _wolfram_normalize(token, time_dependents=None):
+    """Get a normalized Wolfram version of a token"""
+    suffix = "" if time_dependents is None or token not in time_dependents else "[t]"
+
+    if "_" in token:
+        # a_b_c... -> a{b,c...}
+        prefix, index = token.split("_", 1)
+        if prefix in _wolfram_symbols:
+            prefix = _wolfram_symbols[prefix]
+        else:
+            prefix = prefix.lower()  # Avoid conflict with built-in symbols
+        token = "Subscript[%s, %s]" % (prefix, index.replace("_", ","))
+    else:
+        if token in _wolfram_symbols:
+            token = _wolfram_symbols[token]
+        else:
+            token = token.lower()  # Avoid conflict with built-in symbols
+    return token + suffix
+
+
 class Model(_Model):
     """A compartment model with transition rules defined by strings"""
 
@@ -615,6 +718,11 @@ class Model(_Model):
         # Ensure / is padded
         coeff = " / ".join(coeff.split("/"))
         return " ".join(_latex_normalize(token) for token in coeff.split())
+
+    def _coef_to_wolfram(self, coeff):
+        # Ensure / is padded
+        coeff = " / ".join(coeff.split("/"))
+        return " ".join(_wolfram_normalize(token, self.states) for token in coeff.split())
 
     def _get_numerical_model(self, parameters):
         return _NumericalModel(len(self.states), parameters, self._rules, self.agg_rules)
