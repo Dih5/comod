@@ -26,6 +26,8 @@ try:
 except ImportError:
     pdf2image = None
 
+from .common import is_notebook
+
 # Special tokens redered with a LaTeX macro
 _latex_symbols = ['alpha',
                   'beta',
@@ -193,25 +195,6 @@ def _sliding_time(t, window_size=4, step_size=2, criterion="mean"):
         return np.mean(_t, axis=1)
     else:
         raise ValueError("Invalid criterion")
-
-
-def _is_notebook():
-    """Detect if running in a notebook"""
-    # Not sure this covers
-    try:
-        ipython_module = get_ipython().__module__
-        if ipython_module in ['ipykernel.zmqshell', 'google.colab._shell']:
-            # Surely a notebook
-            return True
-        elif ipython_module in ['IPython.terminal.interactiveshell']:
-            # Surely not a notebook
-            return False
-        else:
-            warnings.warn("Unknown iPython detected: %s. Assuming not a notebook.")
-            return False
-    except NameError:
-        # Surely not iPython
-        return False
 
 
 def _escape_state(s):
@@ -554,7 +537,7 @@ class _Model:
         style = {**style, **kwargs}
 
         # network2tikz shows a pdf in an external editor if filename is None. Change if running in a notebook
-        if filename is None and _is_notebook():
+        if filename is None and is_notebook():
             if pdf2image is None:
                 warnings.warn("Image will be shown externally since pdf2image is not available")
                 # Default behaviour below
