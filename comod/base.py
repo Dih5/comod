@@ -386,7 +386,8 @@ class _Model:
         Args:
             data (list of list of float): 2D array whose first index is the component (e.g., S, I, R....) and its
                                           second index is the time.
-            t (list of float): Time mesh. Must be consistent with data.
+            t (list of float): Time mesh. Must be consistent with data. Explicitly provide None to use an integer mesh
+                               starting from 0.
             initial_pars (list of float): Initial values of the parameters.
             target (str): Metric to reproduce. Available options are:
                           - "y": The curves themselves.
@@ -411,7 +412,10 @@ class _Model:
         # Time to first index, component to second
         data = np.asarray(data).T
 
-        t = np.asarray(t)
+        if t is None:
+            t = np.asarray(list(range(len(data[0]))))
+        else:
+            t = np.asarray(t)
 
         if target == "dy":
             # Fit to increments
@@ -458,7 +462,8 @@ class _Model:
         Args:
             data (list of list of float): 2D array whose first index is the component (e.g., S, I, R....) and its
                                           second index is the time.
-            t (list of float): Time mesh. Must be consistent with data.
+            t (list of float): Time mesh. Must be consistent with data. Explicitly provide None to use an integer mesh
+                               starting from 0.
             initial_pars (list of float): Initial values of the parameters.
             window_size (int): Window size (number of time values in each window).
             step_size (int): Window step size (number of time values between windows).
@@ -477,6 +482,8 @@ class _Model:
             pd.DataFrame: A dataframe with the fits in each of the windows.
 
         """
+        if t is None:
+            t = np.asarray(list(range(len(data[0]))))
         values = np.asarray(list(self._best_sliding_fit(data, t, initial_pars, window_size, step_size, target=target,
                                                         component_weights=component_weights, ls_kwargs=ls_kwargs)))
         t2 = _sliding_time(t, window_size=window_size, step_size=step_size, criterion=time_criterion)
