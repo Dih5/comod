@@ -4,7 +4,6 @@
 
 [![license MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/Dih5/comod/master/LICENSE.txt)
 
-[![Build Status](https://travis-ci.org/Dih5/comod.svg?branch=master)](https://travis-ci.org/Dih5/comod)
 [![Documentation Status](https://readthedocs.org/projects/comod/badge/?version=latest)](http://comod.readthedocs.io/en/latest/?badge=latest)
 
 Compartmental modelling Python package
