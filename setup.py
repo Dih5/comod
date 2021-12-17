@@ -41,6 +41,6 @@ setup(author="Dih5",
       packages=find_packages(include=['comod'], exclude=["demos", "tests", "docs"]),
       install_requires=["numpy", "scipy", "pandas"],
       url='https://github.com/dih5/comod',
-      version='0.2.0',
+      version='0.2.1',
 
       )
